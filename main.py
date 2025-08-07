@@ -10,42 +10,54 @@ def user_input():
 
         if not os.path.isdir(dir_to_backup):
             print(f"❗ Directory \"{dir_to_backup}\" does not exist. Please enter correct direcotory  path.")
-        else: break
+        else: 
+            if os.access(dir_to_backup,os.R_OK):
+                break
+            else: 
+                print(f"❗Your user does not have permission to read this directory\n")
+
+            # except Exception as e:
+            #     print(f"❗Your user does not have permission to read this directory\nERROR:\n{e}")
 
 
     while True:
         dest_dir = os.path.expanduser(input(f"❔ Please specify destination directoy for backup archives >>> "))
 
         if not os.path.isdir(dest_dir):
-            try:
-                print(f"❗ Directory \"{dest_dir}\" does not exist. Creating...")
-                os.makedirs(dest_dir,exist_ok=True)
-                print(f"✅ Script will backup \"{dir_to_backup}\" directory.\n✅ Archives will be saved in: \"{dest_dir}\".")
-                break
-            except Exception as e:
-                print(f"❗ Could not create directory.\nERROR:\n{e}")
+            base_dir = os.path.dirname(dest_dir)
+            if os.access(base_dir,os.W_OK):
+                print(f"🛈 Directory \"{dest_dir}\" does not exist. Creating...")
+                try:
+                    os.makedirs(dest_dir,exist_ok=True)
+                    print(f"✅ Directory - {dest_dir} has been created.")
+                    break
+                except Exception as e:
+                    print(f"❗ Could not create directory.\nERROR:\n{e}")
+            else:
+                print(f"❗ You don't have write permission to create '{dest_dir}' in {base_dir}")
         else:
-            print(f"✅ Script will backup \"{dir_to_backup}\" directory.\n✅ Archives will be saved in: \"{dest_dir}\".")
-            break
+            if os.access(dest_dir,os.W_OK):
+                break
+            else: 
+                print(f"❗ You don't have write permission inside: '{dest_dir}'")
+
+
+                
+
 
     while True: 
-        algos = {"xz":False,"gzip":False,"bzip2":False,"None":False}
-        algo = input("\nThis script uses 'tar' to archive specified directories. Please type the algorithm to use for compression.\nSupported algorithms are ('xz','gzip','bzip2','None) >>> ")
+        # algos = {"xz":False,"gzip":False,"bzip2":False,"None":False}
+        algos = {"xz","gzip","bzip2","None"}
+
+        algo = input("\n🛈 This script uses 'tar' to archive specified directories. Please type the algorithm to use for compression.\nSupported algorithms are ('xz','gzip','bzip2','None) >>> ")
         if not algo in algos:
-            print("Typed compression algorithm not available. Please type one of these: ('xz','gzip','bzip2','None')")
-        else:
-            algos[algo] = True
-            break
+            print("Selected compression algorithm not available. Please type one of these: ('xz','gzip','bzip2','None')")
+        else: break
 
-    return dir_to_backup,dest_dir,algos
+    return dir_to_backup,dest_dir,algo
 
-def compress(src,dest,alg):
-    date =  datetime.datetime.now().strftime("%d-%m-%Y-%H:%M")
-
-    for i in alg:
-        if alg.get(i)== True:
-            compression = i
-            break
+def compress(src,dest,alg0):
+    date =  datetime.datetime.now().strftime("%d-%m-%Y-%H-%M")
 
     algorithms = {
         'xz': {"ext":".tar.xz", "options":["-cJf"]},
@@ -53,24 +65,28 @@ def compress(src,dest,alg):
         'bzip2': {"ext":".tar.bzip2", "options":["-cjf"]},
         'None': {"ext":".tar", "options":["-cf"]},
     }
+    
+    src_target,src_dir = os.path.basename(src), os.path.dirname(src)
 
-    compress_config = algorithms.get(compression)
-    archive_name = dest+"/backup" + "--" + date + compress_config["ext"]
-    src_target = os.path.basename(src)
-    src_dir = os.path.dirname(src)
+    compress_config = algorithms.get(algo)
 
+    archive_name = dest+"/"+src_target + "--" + date + compress_config["ext"]
 
-    # print(archive_name)
     cmd = ['tar'] + compress_config.get("options") + [archive_name,"-C", src_dir , src_target]
 
-    print(cmd)
+    print(f"🛈 Script will backup \"{dir_to_backup}\" directory.\n🛈 Backup will be saved in: \"{dest_dir}\".")
 
-    subprocess.run(cmd)
+    try:
+        print(f"🛈 Started backup process for {src}...")
+        subprocess.run(cmd)
+        print(f"✅ Done\n")
+    except Exception as e:
+        print(f"❗ ERROR\n{e}")
 
 
 
     
 
     
-dir_to_backup,dest_dir,algos =  user_input()
-compress(dir_to_backup,dest_dir,algos)
+dir_to_backup,dest_dir,algo =  user_input()
+compress(dir_to_backup,dest_dir,algo)
